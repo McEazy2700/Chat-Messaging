@@ -28,7 +28,7 @@ class AuthViewSet(viewsets.ViewSet):
     @swagger_auto_schema(
         request_body=TokenCreateRequestSerializer,
         responses={status.HTTP_200_OK: TimedAuthTokenPairSerializer},
-        tags=["Auth"],
+        tags=["auth"],
     )
     @action(methods=["POST"], detail=False, url_path="token", url_name="token")
     def token_create(self, request: Request):
@@ -59,7 +59,7 @@ class AuthViewSet(viewsets.ViewSet):
     @swagger_auto_schema(
         request_body=VerifyTokenRequestSerializer,
         responses={status.HTTP_200_OK: TimedAuthTokenPairSerializer},
-        tags=["Auth"],
+        tags=["auth"],
     )
     @action(methods=["POST"], detail=False, url_path="verify", url_name="verify")
     def verify(self, request: Request):
@@ -80,7 +80,7 @@ class AuthViewSet(viewsets.ViewSet):
     @swagger_auto_schema(
         request_body=RefreshTokenRequestSerializer,
         responses={status.HTTP_200_OK: TimedAuthTokenPairSerializer},
-        tags=["Auth"],
+        tags=["auth"],
     )
     @action(methods=["POST"], detail=False, url_path="refresh", url_name="refresh")
     def refresh_token(self, request: Request):
@@ -105,7 +105,7 @@ class AuthViewSet(viewsets.ViewSet):
     @swagger_auto_schema(
         request_body=ServiceUserAuthInvalidateRequestSerializer,
         responses={status.HTTP_200_OK: MessageResponseSerializer},
-        tags=["Auth"],
+        tags=["auth"],
     )
     @action(
         methods=["POST"],

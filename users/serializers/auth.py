@@ -1,12 +1,6 @@
 from rest_framework import serializers
-from users.models.users import User
 from users.models.auth import TimedAuthTokenPair
-
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ["email"]
+from users.serializers.user import UserSerializer
 
 
 class TimedAuthTokenPairSerializer(serializers.ModelSerializer):
@@ -14,7 +8,7 @@ class TimedAuthTokenPairSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TimedAuthTokenPair
-        fields = ["token", "refresh_token", "user", "expires_at"]
+        fields = ["token", "refresh_token", "user", "expires_at", "user"]
 
 
 class TokenCreateRequestSerializer(serializers.Serializer):

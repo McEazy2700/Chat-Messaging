@@ -33,6 +33,7 @@ ALLOWED_HOSTS = [host for host in str(config("ALLOWED_HOSTS")).split(",") if hos
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -41,8 +42,10 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_yasg",
+    "channels",
     "django_extensions",
     "users",
+    "messaging",
 ]
 
 MIDDLEWARE = [
@@ -134,6 +137,13 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
+ASGI_APPLICATION = "core.asgi.application"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [(config("REDIS_HOST"), config("REDIS_PORT"))]},
+    }
+}
 
 CUSTOM_AUTH = {
     "TOKEN_VALID_DURATION_HOURS": 5,

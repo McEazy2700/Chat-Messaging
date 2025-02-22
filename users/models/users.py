@@ -62,3 +62,26 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def get_long_name(self):
         return self.email
+
+
+class Profile(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    username = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    first_name = models.CharField(max_length=255, null=True, blank=True)
+    last_name = models.CharField(max_length=255, null=True, blank=True)
+    other_names = models.CharField(max_length=255, null=True, blank=True)
+    bio = models.TextField(null=True, blank=True)
+    phone_number = models.CharField(max_length=20, null=True, blank=True)
+    profile_image_url = models.CharField(max_length=500, null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
+    @property
+    def full_name(self):
+        if self.first_name or self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        elif self.username:
+            return self.username
+        return self.user.email
