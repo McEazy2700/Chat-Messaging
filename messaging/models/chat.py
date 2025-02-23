@@ -36,5 +36,6 @@ class ChatRoomMessage(models.Model):
     text = models.TextField(null=True, blank=True)
     url = models.CharField(max_length=500, null=True, blank=True)
     url_content_type = models.CharField(max_length=255, null=True, blank=True)
+    read = models.BooleanField(default=False, null=True, blank=True)
     date_added = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)

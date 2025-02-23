@@ -4,6 +4,7 @@ from channels.layers import BaseChannelLayer, get_channel_layer
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions
+from rest_framework.decorators import action
 from rest_framework.generics import mixins
 from rest_framework.views import Request, Response, exceptions, status
 from drf_yasg.utils import swagger_auto_schema
@@ -136,6 +137,27 @@ class ChatRoomMessageViewSet(viewsets.ModelViewSet):
         return Response(
             response_serializer.data,
             status=status.HTTP_200_OK,
+        )
+
+    @swagger_auto_schema(
+        responses={
+            status.HTTP_200_OK: ChatRoomMessageDetailSerializer,
+        },
+        operation_description="Update a message's read state",
+    )
+    @action(
+        methods=["POST"],
+        detail=True,
+        url_path="update_read_status",
+        url_name="update-read-status",
+    )
+    def update_read_status(self, request: Request):
+        message = cast(ChatRoomMessage, self.get_object())
+        message.read = True  # pyright: ignore[reportUnreachable]
+        message.save()
+
+        return Response(
+            ChatRoomMessageDetailSerializer(message).data, status=status.HTTP_200_OK
         )
 
 
