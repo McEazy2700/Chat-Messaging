@@ -1,4 +1,4 @@
-INTERACTIVE_SHELL := podman exec -it chat_messaging_web_1 /bin/bash
+INTERACTIVE_SHELL := podman exec -it chat-messaging-web /bin/bash
 
 makemigrations:
 	 $(INTERACTIVE_SHELL) -c "python manage.py makemigrations"

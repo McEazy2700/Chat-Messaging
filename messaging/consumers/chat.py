@@ -1,13 +1,13 @@
 import json
 from typing import Any, Optional, cast
-from channels.generic.websocket import WebsocketConsumer
+from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import BaseChannelLayer
 from django.contrib.auth.models import AnonymousUser
 
 from users.models.users import User
 
 
-class ChatConsumer(WebsocketConsumer):
+class ChatConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args: Any, **kwargs: Any):
         self.user: AnonymousUser | User
         self.room_id: str
@@ -21,20 +21,36 @@ class ChatConsumer(WebsocketConsumer):
         self.user = self.scope["user"]
 
         if not self.user.is_authenticated:
-            self.close()
+            await self.close()
             return
 
         if not "can_view_chat" in cast(User, self.user).hq_user_data["permissions"]:
-            self.close()
+            await self.close()
             return
 
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-        self.accept()
+        await self.accept()
 
     async def disconnect(self, code: str):
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
-    def receive(
+    async def receive(
         self, text_data: Optional[str] = None, bytes_data: Optional[bytes] = None
     ):
-        pass
+        """
+        When a message is received from WebSocket, send it to the chat room group.
+        """
+        if text_data:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "chat_message",
+                    "message": text_data,
+                },
+            )
+
+    async def chat_message(self, event):
+        """
+        Handles incoming messages sent to the room group.
+        """
+        await self.send(text_data=json.dumps(event))

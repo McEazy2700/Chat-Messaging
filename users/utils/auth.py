@@ -12,10 +12,11 @@ class AuthManager:
         data = {"token": token}
 
         headers = {
-            "HTTP_X_SERVICE_API_KEY": f"{auth_settings.get('BASE_AUTH_ISSUED_SERVICE_NAME')} {auth_settings.get('BASE_AUTH_ISSUED_API_KEY')}"
+            "X-Service-Api-Key": f"{auth_settings.get('BASE_AUTH_ISSUED_SERVICE_NAME')} {auth_settings.get('BASE_AUTH_ISSUED_API_KEY')}"
         }
         response = requests.post(url, data, headers=headers)
+
         if response.status_code != 200:
-            raise exceptions.AuthenticationFailed(response.json())
+            raise exceptions.AuthenticationFailed(response.text)
 
         return response.json()

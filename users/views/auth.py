@@ -69,7 +69,9 @@ class AuthViewSet(viewsets.ViewSet):
         token = get_object_or_404(TimedAuthTokenPair, token=validated_data.get("token"))
 
         try:
-            jwt.decode(token.token, cast(str, settings.SECRET_KEY), algorithms=["H256"])
+            jwt.decode(
+                token.token, cast(str, settings.SECRET_KEY), algorithms=["HS256"]
+            )
         except jwt.ExpiredSignatureError:
             raise exceptions.AuthenticationFailed("Token Expired")
 
@@ -122,12 +124,17 @@ class AuthViewSet(viewsets.ViewSet):
             hq_user_data__id=validated_data.get("hq_user_id")
         ).first()
 
+        print({"user": user})
+
         if user is None:
             raise exceptions.NotFound("User not found")
 
         _ = TimedAuthTokenPair.objects.filter(user=user).delete()
-
+        serializer = MessageResponseSerializer(
+            data={"message": "User Authentication Revoked"}
+        )
+        _ = serializer.is_valid()
         return Response(
-            MessageResponseSerializer(data={"message": "User Authentication Revoked"}),
+            serializer.data,
             status=status.HTTP_200_OK,
         )

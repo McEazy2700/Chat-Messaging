@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_yasg.utils import swagger_serializer_method
 
 from messaging.models.chat import (
     ChatRoom,
@@ -18,12 +19,24 @@ class ChatRoomMemberDetailSerializer(serializers.ModelSerializer):
 
 
 class ChatRoomMessageDetailSerializer(serializers.ModelSerializer):
-    edited = serializers.BooleanField()
+    edited = serializers.SerializerMethodField()
+    sender = ChatRoomMemberDetailSerializer()
 
     class Meta:
         model = ChatRoomMessage
-        fields = ["id", "text", "url", "url_content_type", "date_added", "edited"]
+        fields = [
+            "id",
+            "text",
+            "url",
+            "url_content_type",
+            "date_added",
+            "edited",
+            "sender",
+        ]
 
+    @swagger_serializer_method(
+        serializer_or_field=serializers.BooleanField(allow_null=True)
+    )
     def get_edited(self, message: ChatRoomMessage):
         return message.date_added != message.last_updated
 
@@ -49,12 +62,15 @@ class ChatRoomEditRequestSerializer(serializers.ModelSerializer):
 
 
 class ChatRoomDetailsSerializer(serializers.ModelSerializer):
-    display_name = serializers.CharField(allow_null=True, required=False)
+    display_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatRoom
         fields = ["id", "name", "cover_image_url", "type", "date_added", "display_name"]
 
+    @swagger_serializer_method(
+        serializer_or_field=serializers.CharField(allow_null=True)
+    )
     def get_display_name(self, room: ChatRoom):
         if room.type == ChatRoomType.Pair:
             request = self.context.get("request")
@@ -62,7 +78,7 @@ class ChatRoomDetailsSerializer(serializers.ModelSerializer):
             if request and hasattr(request, "user"):
                 reciever_member = (
                     ChatRoomMember.objects.select_related("user__profile")
-                    .filter(room=room)
+                    .filter(chat_room=room)
                     .exclude(user=request.user)
                     .first()
                 )

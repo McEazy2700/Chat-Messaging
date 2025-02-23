@@ -28,7 +28,7 @@ User = get_user_model()
 
 
 class ChatRoomMessageViewSet(viewsets.ModelViewSet):
-    queryset = ChatRoomMessage.objects.all()
+    queryset = ChatRoomMessage.objects.all().order_by("date_added")
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ChatRoomMessageDetailSerializer
 
@@ -82,8 +82,12 @@ class ChatRoomMessageViewSet(viewsets.ModelViewSet):
         chat_room_id = self.kwargs.get("chat_pk")
         chat_room = get_object_or_404(ChatRoom, pk=chat_room_id)
 
+        sender = ChatRoomMember.objects.filter(
+            chat_room=chat_room, user=request.user
+        ).first()
+
         message = ChatRoomMessage.objects.create(
-            **validated_data, chat_room=chat_room, sender=request.user
+            **validated_data, chat_room=chat_room, sender=sender
         )
 
         response_serializer = ChatRoomMessageDetailSerializer(message)

@@ -10,13 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 @database_sync_to_async
-def get_user_from_authorization(authorization: str):
-    token_name, token = authorization.split(None, 1)
-    if token_name.lower() != "bearer":
-        return AnonymousUser()
+def get_user_from_token(token: str):
     try:
         decoded = cast(
-            dict[str, Any], jwt.decode(token, cast(str, settings.SECRET_KEY), ["H256"])
+            dict[str, Any], jwt.decode(token, cast(str, settings.SECRET_KEY), ["HS256"])
         )
         user = User.objects.filter(email=decoded.get("email")).first()
         if not user:
@@ -39,15 +36,11 @@ class TokenAuthMiddleWare:
         self.inner = inner
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any):
-        headers = scope["headers"]
+        token = str(scope["query_string"]).split("=").pop().replace("'", "")
 
-        if b"ws_authorization" in headers:
-            try:
-                authorization = headers[b"ws_authorization"]
-                scope["user"] = get_user_from_authorization(str(authorization))
-            except ValueError:
-                scope["user"] = AnonymousUser()
-        else:
+        try:
+            scope["user"] = await get_user_from_token(str(token))
+        except ValueError:
             scope["user"] = AnonymousUser()
 
         return await self.inner(scope, receive, send)

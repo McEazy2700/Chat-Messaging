@@ -3,6 +3,7 @@ version: "3.9"
 services:
   web:
     build: .
+    name: chat-messaging-web
     command: sh /app/includes/scripts/${RUN_SCRIPT}
     volumes:
       - .:/app
@@ -11,12 +12,15 @@ services:
     env_file:
       - .env
     depends_on:
-      db:
+      chat-messaging-db:
         condition: service_healthy
-      redis:
+      chat-messaging-redis:
         condition: service_started
+    networks:
+      - chat_network
 
   db:
+    name: chat-messaging-db
     restart: unless-stopped
     image: postgres:14
     env_file:
@@ -36,6 +40,7 @@ services:
       retries: 10
 
   redis:
+    name: chat-messaging-redis
     image: redis:latest
     restart: unless-stopped
     ports:
@@ -46,3 +51,7 @@ services:
 volumes:
   db_data:
   redis_data:
+
+networks:
+  chat_network:
+    external: true
