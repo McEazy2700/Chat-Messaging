@@ -26,7 +26,9 @@ class ChatRoomMember(models.Model):
     chat_room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     active = models.BooleanField(default=True)
+    online = models.BooleanField(default=False, null=True, blank=True)
     date_added = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(null=True, auto_now=True)
 
 
 class ChatRoomMessage(models.Model):
@@ -36,6 +38,15 @@ class ChatRoomMessage(models.Model):
     text = models.TextField(null=True, blank=True)
     url = models.CharField(max_length=500, null=True, blank=True)
     url_content_type = models.CharField(max_length=255, null=True, blank=True)
-    read = models.BooleanField(default=False, null=True, blank=True)
     date_added = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)
+
+
+class ChatRoomMessageReadReciepts(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    message = models.ForeignKey(ChatRoomMessage, on_delete=models.CASCADE)
+    member = models.ForeignKey(ChatRoomMember, on_delete=models.CASCADE)
+    read_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("message", "member")

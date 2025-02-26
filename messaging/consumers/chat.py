@@ -2,8 +2,10 @@ import json
 from typing import Any, Optional, cast
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import BaseChannelLayer
+from channels.sessions import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 
+from messaging.models.chat import ChatRoomMember
 from users.models.users import User
 
 
@@ -28,10 +30,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
+        await self.set_online_status(True)
+
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
     async def disconnect(self, code: str):
+        await self.set_online_status(False)
+
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(
@@ -49,8 +55,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 },
             )
 
+    @database_sync_to_async
+    def set_online_status(self, online: bool):
+        try:
+            chat_member = ChatRoomMember.objects.get(
+                chat_room__id=self.room_id, user=self.user
+            )
+            print("===Before", self.user, self.room_id, chat_member.online)
+            chat_member.online = online
+            chat_member.save(update_fields=["online", "last_updated"])
+            print("===After", self.user, self.room_id, chat_member.online)
+        except ChatRoomMember.DoesNotExist:
+            pass
+
     async def chat_message(self, event):
         """
         Handles incoming messages sent to the room group.
         """
+        await self.send(text_data=json.dumps(event))
+
+    async def clear_unread(self, event):
         await self.send(text_data=json.dumps(event))

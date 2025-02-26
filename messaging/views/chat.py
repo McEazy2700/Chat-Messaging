@@ -1,15 +1,23 @@
-from typing import Any, cast
+from typing import Any, Optional, cast
 from asgiref.sync import async_to_sync
 from channels.layers import BaseChannelLayer, get_channel_layer
 from django.contrib.auth import get_user_model
+from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, filters
 from rest_framework.decorators import action
 from rest_framework.generics import mixins
 from rest_framework.views import Request, Response, exceptions, status
 from drf_yasg.utils import swagger_auto_schema
 
-from messaging.models.chat import ChatRoom, ChatRoomMember, ChatRoomMessage
+from messaging.filters.chat import ChatRoomMessageFilter
+from messaging.models.chat import (
+    ChatRoom,
+    ChatRoomMember,
+    ChatRoomMessage,
+    ChatRoomMessageReadReciepts,
+)
+from messaging.pagination.chat import ChatMessagesPagination
 from messaging.permissions.chat import (
     CanEditMessagePermission,
     CanSendMessagePermission,
@@ -32,6 +40,13 @@ class ChatRoomMessageViewSet(viewsets.ModelViewSet):
     queryset = ChatRoomMessage.objects.all().order_by("date_added")
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ChatRoomMessageDetailSerializer
+    pagination_class = ChatMessagesPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = ChatRoomMessageFilter
+    search_fields = ["text"]
+
+    def get_queryset(self):
+        return self.queryset.filter(chat_room__pk=self.kwargs.get("chat_pk"))
 
     def get_serializer_class(self):
         if self.action in ["create", "update", "partial_update"]:
@@ -91,6 +106,14 @@ class ChatRoomMessageViewSet(viewsets.ModelViewSet):
             **validated_data, chat_room=chat_room, sender=sender
         )
 
+        read_receipts = [
+            ChatRoomMessageReadReciepts(message=message, member=member)
+            for member in ChatRoomMember.objects.filter(
+                chat_room=chat_room, online=True, active=True
+            )
+        ]
+        _ = ChatRoomMessageReadReciepts.objects.bulk_create(read_receipts)
+
         response_serializer = ChatRoomMessageDetailSerializer(message)
 
         channel_layer = cast(BaseChannelLayer, get_channel_layer())
@@ -137,27 +160,6 @@ class ChatRoomMessageViewSet(viewsets.ModelViewSet):
         return Response(
             response_serializer.data,
             status=status.HTTP_200_OK,
-        )
-
-    @swagger_auto_schema(
-        responses={
-            status.HTTP_200_OK: ChatRoomMessageDetailSerializer,
-        },
-        operation_description="Update a message's read state",
-    )
-    @action(
-        methods=["POST"],
-        detail=True,
-        url_path="update_read_status",
-        url_name="update-read-status",
-    )
-    def update_read_status(self, request: Request):
-        message = cast(ChatRoomMessage, self.get_object())
-        message.read = True  # pyright: ignore[reportUnreachable]
-        message.save()
-
-        return Response(
-            ChatRoomMessageDetailSerializer(message).data, status=status.HTTP_200_OK
         )
 
 
@@ -248,6 +250,53 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
         return Response(
             response_serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
+    @swagger_auto_schema(
+        request_body=None,
+        responses={status.HTTP_200_OK: None},
+        operation_summary="Clear Unread",
+        operation_description="Clears a users unread messages",
+    )
+    @action(
+        methods=["DELETE"],
+        detail=True,
+        url_path="clear_unread",
+        url_name="clear-unread",
+    )
+    def clear_unread(self, request: Request, pk: Optional[str] = None):
+        chat_room = get_object_or_404(ChatRoom, pk=pk)
+        member = ChatRoomMember.objects.get(chat_room=chat_room, user=request.user)
+
+        unread_messages = (
+            ChatRoomMessage.objects.filter(chat_room=chat_room)
+            .exclude(sender=member)
+            .filter(
+                ~Exists(
+                    ChatRoomMessageReadReciepts.objects.filter(
+                        message=OuterRef("id"), member=member
+                    )
+                )
+            )
+        )
+
+        read_receipts = [
+            ChatRoomMessageReadReciepts(message=message, member=member)
+            for message in unread_messages
+        ]
+
+        _ = ChatRoomMessageReadReciepts.objects.bulk_create(read_receipts)
+
+        channel_layer = cast(BaseChannelLayer, get_channel_layer())
+        group_name = f"chat_{self.kwargs.get('chat_pk')}"
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {"type": "clear_unread", "data": str(self.kwargs.get("chat_pk"))},
+        )
+
+        return Response(
+            None,
             status=status.HTTP_200_OK,
         )
 
